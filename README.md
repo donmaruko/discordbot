@@ -3,12 +3,12 @@ A simple discord bot written in Python.
 
 List of commands:
 
-  balance   Checks for a user's balance
-  blackjack Starts a game of blackjack with the bot.
-  buy       Purchase a role from the role shop.
-  clear     Clears a given number of messages.
-  clearq    Clear the queue.
-  grant     Admin only, grants a user a given amount of dabloons.
+  	balance   Checks for a user's balance
+		blackjack Starts a game of blackjack with the bot.
+  	buy       Purchase a role from the role shop.
+  	clear     Clears a given number of messages.
+  	clearq    Clear the queue.
+  	grant     Admin only, grants a user a given amount of dabloons.
   hello     The classic greeting command!
   help      Shows this message
   image     Displays a random image based on a given keyword

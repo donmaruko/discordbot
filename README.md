@@ -3,7 +3,7 @@ A simple discord bot written in Python.
 
 List of commands:
 
-  balance   Checks for a user's balance.\n
+  balance   Checks for a user's balance
   blackjack Starts a game of blackjack with the bot.
   buy       Purchase a role from the role shop.
   clear     Clears a given number of messages.

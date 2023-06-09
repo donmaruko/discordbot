@@ -1,7 +1,7 @@
 import discord,os
 from discord.ext import commands
-import adminJAT, balanceJAT, blackjackJAT, clearJAT
-import imageJAT, rolesJAT, helloJAT, pollJAT, musicJAT
+import adminJAT, balanceJAT, blackjackJAT, clearJAT, connect4JAT
+import definitionsJAT, imageJAT, rolesJAT, helloJAT, pollJAT, musicJAT, suggestJAT
 
 intents = discord.Intents.all()
 intents.typing = False
@@ -38,23 +38,30 @@ adminJAT.setup(bot)
 balanceJAT.setup(bot)
 blackjackJAT.setup(bot)
 clearJAT.setup(bot)
+connect4JAT.setup(bot) # FIX
+definitionsJAT.setup(bot)
 helloJAT.setup(bot)
 imageJAT.setup(bot)
 musicJAT.setup(bot)
 pollJAT.setup(bot)
 rolesJAT.setup(bot)
+suggestJAT.setup(bot)
 
 # error-handling
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
+        print(error)
         await ctx.send(f"That command doesn't exist, {ctx.author.mention}, make sure to also use proper capitalization.")
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("Please provide all required arguments.")
+        print(error)
+        await ctx.send(f"Please provide all required arguments for the command, {ctx.author.mention}.")
     elif isinstance(error, commands.BadArgument):
-        await ctx.send("Invalid argument.")
+        print(error)
+        await ctx.send(f"Invalid argument provided, {ctx.author.mention}.")
     else:
-        await ctx.send("An error occurred while executing the command.")
+        print(error)  # Print the error message to the console
+        await ctx.send(f"An error occurred while executing the command, {ctx.author.mention}.")
 
 file_path = os.path.join(os.path.dirname(__file__), 'token.txt')
 with open(file_path, 'r') as file:

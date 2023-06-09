@@ -8,7 +8,6 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS balances
              (user_id INTEGER PRIMARY KEY, balance INTEGER)''')
 conn.commit()
-
 # sqlite stuff
 def get_balance(user_id):
     c.execute("SELECT balance FROM balances WHERE user_id=?", (str(user_id),)) # convert user id to string
@@ -16,14 +15,14 @@ def get_balance(user_id):
     if result is not None:
         return result[0]
     else:
-        return None
+        return 0
 # function to update the user's balance in the database
 def update_balance(user_id, balance):
-    if balance < 0: # no negative balances
+    if balance < 0:  # no negative balances
         balance = 0
-    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (user_id, balance))
+    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (str(user_id), balance))
     conn.commit()
-
+    
 # function to calculate the sum of cards in a hand, accounting for aces
 def sum_cards(cards):
     total = sum(cards)
@@ -58,7 +57,7 @@ async def blackjack(ctx, bet:int=0):
 
     # check for blackjack
     if sum_cards(player_hand) == 21:
-        await ctx.send(f"Blackjack! You win! {ctx.author.mention} gained {bet} dabloons.")
+        await ctx.send(f"Blackjack! {ctx.author.mention} won and gained {bet} dabloons.")
         balance += bet * 2
         update_balance(ctx.author.id, balance)
         return
@@ -83,7 +82,7 @@ async def blackjack(ctx, bet:int=0):
                 update_balance(ctx.author.id, balance)
                 return
             if sum_cards(player_hand) == 21:
-                await ctx.send(f"Blackjack! You win! {ctx.author.mention} gained {bet} dabloons!")
+                await ctx.send(f"Blackjack! {ctx.author.mention} won and gained {bet} dabloons!")
                 balance += bet * 2
                 update_balance(ctx.author.id, balance)
                 return
@@ -96,7 +95,7 @@ async def blackjack(ctx, bet:int=0):
 
     # check for a hand of 21
     if sum_cards(player_hand) == 21:
-        await ctx.send(f"21! You win! {ctx.author.mention} gained {bet} dabloons.")
+        await ctx.send(f"21! {ctx.author.mention} won and gained {bet} dabloons.")
         balance += bet
         update_balance(ctx.author.id, balance)
         return
@@ -109,7 +108,7 @@ async def blackjack(ctx, bet:int=0):
     await ctx.send(f"Dealer's hand: {dealer_hand} ({sum_cards(dealer_hand)})")
 
     if sum_cards(dealer_hand) > 21:
-        await ctx.send(f"Dealer busts! You win! {ctx.author.mention} gained {bet} dabloons.")
+        await ctx.send(f"Dealer busts! {ctx.author.mention} won and gained {bet} dabloons.")
         balance += bet
         update_balance(ctx.author.id, balance)
         return
@@ -127,7 +126,7 @@ async def blackjack(ctx, bet:int=0):
         update_balance(ctx.author.id, balance)
         return
     else:
-        await ctx.send(f"You win! {ctx.author.mention} gained {bet} dabloons.")
+        await ctx.send(f"{ctx.author.mention} won and gained {bet} dabloons.")
         balance += bet
         update_balance(ctx.author.id, balance)
         return
@@ -141,7 +140,6 @@ async def blackjack_error(ctx, error):
         await ctx.send("Please enter an amount to bet.")
     else:
         await ctx.send("An error occurred while executing the command.")
-
 
 def setup(bot):
     bot.add_command(blackjack)

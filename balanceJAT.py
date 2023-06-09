@@ -19,9 +19,9 @@ def get_balance(user_id):
         return None
 # function to update the user's balance in the database
 def update_balance(user_id, balance):
-    if balance < 0: # no negative balances
+    if balance < 0:  # no negative balances
         balance = 0
-    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (user_id, balance))
+    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (str(user_id), balance))
     conn.commit()
 
 # check user balance

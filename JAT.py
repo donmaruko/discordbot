@@ -7,7 +7,7 @@ intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
 intents.members = True
-bot = commands.Bot(command_prefix='$', intents=intents)
+bot = commands.Bot(command_prefix='$', intents=intents, activity=discord.Game(name="Connect 4 🔴🟡"))
 
 # bot is online !
 @bot.event

@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-import random,asyncio,youtube_dl
+import random,asyncio,youtube_dl,spotipy
 from youtube_search import YoutubeSearch
 
 queue = []
@@ -152,6 +152,15 @@ async def unloop(ctx):
     else:
         await ctx.send("Looping is already disabled.")
 
+@commands.command(name='current', help='Check the currently playing song.')
+async def current(ctx):
+    voice_client = ctx.voice_client
+    if voice_client and voice_client.is_playing():
+        current_song = voice_client.source.title
+        await ctx.send(f'Currently playing: {current_song}')
+    else:
+        await ctx.send('No audio is currently playing.')
+
 @commands.command(name='search', help='Search for a YouTube video.')
 async def search(ctx, query):
     # Perform the YouTube search using the query
@@ -204,3 +213,4 @@ def setup(bot):
     bot.add_command(loop)
     bot.add_command(unloop)
     bot.add_command(search)
+    bot.add_command(current)

@@ -15,12 +15,12 @@ def get_balance(user_id):
     if result is not None:
         return result[0]
     else:
-        return None
+        return 0
 # function to update the user's balance in the database
 def update_balance(user_id, balance):
-    if balance < 0: # no negative balances
+    if balance < 0:  # no negative balances
         balance = 0
-    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (user_id, balance))
+    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (str(user_id), balance))
     conn.commit()
 
 # mercy for broke people
@@ -34,18 +34,14 @@ async def mercy(ctx):
     else:
         await ctx.send("Sorry, you can only be granted 500 dabloons if you're TRULY BROKE.")
 
-# admin only
 @commands.command(name='grant', help='Admin only, grants a user a given amount of dabloons.')
 @commands.has_permissions(administrator=True)
 async def grant(ctx, user: discord.Member = None, amount: int = None):
-    if not user and not amount:
+    if user is None and amount is None:
         await ctx.send("Who shall I grant dabloons to? Specify the user and amount, please.")
         return
-    if not user:
+    if user is None:
         await ctx.send("Who shall I grant dabloons to?")
-        return
-    if not amount:
-        await ctx.send(f"How many dabloons do you want to grant {user.name}?")
         return
     if amount is None:
         await ctx.send(f"How many dabloons do you want to grant to {user.name}?")
@@ -54,13 +50,13 @@ async def grant(ctx, user: discord.Member = None, amount: int = None):
     balance += amount
     update_balance(user.id, balance)
     await ctx.send(f"Ckckck.. you dirty cheater, {user.name}.")
-# error handler
 @grant.error
 async def grant_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have permission to use this command.")
     else:
         await ctx.send("Please input the correct arguments, e.g., $grant @user 1.")
+
 # admin only
 @commands.command(name='punish', help='Removes 5000 dabloons from a given user.')
 @commands.has_permissions(administrator=True)

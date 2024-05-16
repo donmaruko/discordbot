@@ -1,18 +1,36 @@
+
 import discord,os
+from discord import app_commands
 from discord.ext import commands
-import adminJAT, balanceJAT, blackjackJAT, clearJAT, connect4JAT
-import definitionsJAT, imageJAT, rolesJAT, helloJAT, pollJAT, musicJAT, suggestJAT
+import adminJAT, balanceJAT, blackjackJAT, connect4JAT, sayJAT, clearJAT, musicJAT, caesarJAT
+import definitionsJAT, imageJAT, rolesJAT, helloJAT, suggestJAT, setstatusJAT, helpJAT, avatarJAT
+import stonksJAT
+from stonksJAT import change_stonk_price
 
 intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
 intents.members = True
-bot = commands.Bot(command_prefix='$', intents=intents, activity=discord.Game(name="Connect 4 🔴🟡"))
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 # bot is online !
 @bot.event
 async def on_ready():
+    await bot.tree.sync()
     print(f'Logged in as {bot.user.name}')
+    activity = discord.Activity(type=discord.ActivityType.playing, name="with your feelings ;)")
+    await bot.change_presence(activity=activity)
+    change_stonk_price.start()
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(e)
+
+@bot.tree.command(name='ping', description="Shows the user their ping")
+async def ping(interaction: discord.Interaction):
+    bot_latency = round(bot.latency*1000)
+    await interaction.response.send_message(f"Pong!... {bot_latency}ms",ephemeral=True)
 
 # welcomes new members to the server
 @bot.event
@@ -37,15 +55,20 @@ async def on_voice_state_update(member, before, after):
 adminJAT.setup(bot)
 balanceJAT.setup(bot)
 blackjackJAT.setup(bot)
-clearJAT.setup(bot)
-connect4JAT.setup(bot) # FIX
+connect4JAT.setup(bot)
 definitionsJAT.setup(bot)
 helloJAT.setup(bot)
 imageJAT.setup(bot)
-musicJAT.setup(bot)
-pollJAT.setup(bot)
 rolesJAT.setup(bot)
 suggestJAT.setup(bot)
+sayJAT.setup(bot)
+clearJAT.setup(bot)
+setstatusJAT.setup(bot)
+musicJAT.setup(bot)
+helpJAT.setup(bot)
+caesarJAT.setup(bot)
+avatarJAT.setup(bot)
+stonksJAT.setup(bot)
 
 # error-handling
 @bot.event

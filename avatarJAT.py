@@ -1,14 +1,11 @@
 import discord
-from discord.ext import commands
+from discord import app_commands
 
-@commands.command(name='avatar', help='Get the profile picture of a user in the server.')
-async def avatar(ctx, user: discord.Member = None):
-    if user is None:
-        user = ctx.author
-    try:
-        avatar_url = user.avatar_url
-        await ctx.send(f"Here is {user.name}'s profile picture:\n{avatar_url}")
-    except discord.errors.NotFound:
-        await ctx.send("Invalid user. Please mention a valid user.")
 def setup(bot):
-    bot.add_command(avatar)
+    @bot.tree.command(name='avatar', description="Grabs the avatar of a user")
+    @app_commands.describe(user="The user whose avatar you want to see")
+    async def avatar(interaction: discord.Interaction, user: discord.User = None):
+        if user is None:
+            user = interaction.user
+        avatar_url = user.display_avatar.url
+        await interaction.response.send_message(f"Here is {user.display_name}'s profile picture:\n{avatar_url}")

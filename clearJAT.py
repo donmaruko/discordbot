@@ -1,25 +1,20 @@
+from discord import app_commands
 import discord
-from discord.ext import commands
-
-@commands.command(name='clear', help='Clears a given number of messages.')
-@commands.has_permissions(manage_messages=True)
-async def clear(ctx, amount: int = None):
-    """Clears a specified amount of messages in the chat."""
-    if amount is None:
-        await ctx.send("Please specify the number of messages to clear.")
-        return
-    if amount > 50:
-        await ctx.send("Chill, only 50 messages tops!")
-        return
-    await ctx.channel.purge(limit=amount + 1)
-    await ctx.send(f"{amount} messages have been cleared.")
-
-@clear.error
-async def clear_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("Please specify the number of messages to clear.")
-    else:
-        raise error
 
 def setup(bot):
-    bot.add_command(clear)
+    @bot.tree.command(name='clear', description="Clears 1-25 messages")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    @app_commands.checks.bot_has_permissions(manage_messages=True)
+    @app_commands.describe(amount="How many messages to clear?")
+    async def clear(interaction: discord.Interaction, amount: int):
+        # Acknowledge the interaction first if the operation might take longer
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            if 0 < amount <= 25:
+                await interaction.channel.purge(limit=amount)
+                await interaction.followup.send(f"Cleared {amount} messages.", ephemeral=True)
+            else:
+                await interaction.followup.send("Please provide a number between 1 and 25.", ephemeral=True)
+        except discord.errors.NotFound:
+            print("Interaction not found or already resolved.")

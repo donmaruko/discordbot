@@ -1,95 +1,136 @@
 import discord
-from discord.ext import commands
+import asyncio
+import sqlite3
+from discord import app_commands
 
-# Define the Connect 4 game class
+# sqlite
+conn = sqlite3.connect('balances.db')
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS balances
+             (user_id INTEGER PRIMARY KEY, balance INTEGER)''')
+conn.commit()
+
+# sqlite stuff
+def get_balance(user_id):
+    c.execute("SELECT balance FROM balances WHERE user_id=?", (str(user_id),)) # convert user id to string
+    result = c.fetchone()
+    if result is not None:
+        return result[0]
+    else:
+        return 0
+    
+# function to update the user's balance in the database
+def update_balance(user_id, balance):
+    if balance < 0:  # no negative balances
+        balance = 0
+    c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (str(user_id), balance))
+    conn.commit()
+
 class Connect4Game:
     def __init__(self, player1, player2):
-        self.player1 = player1
-        self.player2 = player2
-        self.current_player = player1
         self.board = [['⚪' for _ in range(7)] for _ in range(6)]
-        self.winner = None
+        self.players = [player1, player2]
+        self.current_player = 0  # index of current player
 
-    def make_move(self, column):
-        for row in range(5, -1, -1):
-            if self.board[row][column-1] == '⚪':
-                self.board[row][column-1] = '🔴' if self.current_player == self.player1 else '🟡'
-                if self.check_winner(row, column-1):
-                    self.winner = self.current_player
-                    return  # Exit the function if a winner is found
-                self.switch_player()
-                break
-        else:
-            raise ValueError("Invalid move!")
-
-    def check_winner(self, row, col):
-        directions = [(0, 1), (1, 0), (1, 1), (-1, 1)]
-        current_color = self.board[row][col]  # Get the color of the current disc
-        for dx, dy in directions:
-            count = 1
-            for i in range(1, 4):
-                r = row + i * dx
-                c = col + i * dy
-                if 0 <= r < 6 and 0 <= c < 7 and self.board[r][c] == current_color:
-                    count += 1
-                else:
-                    break
-            if count == 4:
+    def insert_piece(self, column):
+        # Adjust column to be 0-indexed
+        column -= 1
+        # Insert piece in the lowest available row in the specified column
+        for row in reversed(range(6)):
+            if self.board[row][column] == '⚪':
+                self.board[row][column] = '🔴' if self.current_player == 0 else '🟡'
                 return True
         return False
 
+    def check_winner(self):
+        # Horizontal, vertical, and diagonal checks
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        for row in range(6):
+            for col in range(7):
+                if self.board[row][col] != '⚪':
+                    for dr, dc in directions:
+                        line = [self.get_cell(row + i*dr, col + i*dc) for i in range(4)]
+                        if all(cell == self.board[row][col] for cell in line):
+                            return True
+        return False
 
-    def switch_player(self):
-        if self.current_player == self.player1:
-            self.current_player = self.player2
-        else:
-            self.current_player = self.player1
+    def get_cell(self, row, col):
+        if 0 <= row < 6 and 0 <= col < 7:
+            return self.board[row][col]
+        return None
 
-    def is_board_full(self):
-        for row in self.board:
-            if '⚪' in row:
-                return False
-        return True
+    def is_full(self):
+        return all(self.board[0][col] != '⚪' for col in range(7))
 
     def display_board(self):
-        return '```' + '\n'.join(['|'.join(row) for row in self.board]) + '```'
-
-game = None
-
-# Command to start a Connect 4 game
-@commands.command()
-async def connect4(ctx, opponent: discord.Member):
-    global game
-    if game is not None:
-        await ctx.send("A game is already in progress.")
-    elif opponent == ctx.author:
-        await ctx.send("You cannot play against yourself!")
-    else:
-        game = Connect4Game(ctx.author, opponent)
-        await ctx.send(f"{ctx.author.mention} vs {opponent.mention}. Let the game begin!\n\n{game.display_board()}")
-
-# Command to make a move in the Connect 4 game
-@commands.command()
-async def drop(ctx, column: int):
-    global game
-    if game is None:
-        await ctx.send("No game in progress. Start a game using !connect4.")
-    elif ctx.author != game.current_player:
-        await ctx.send("It's not your turn!")
-    else:
-        try:
-            game.make_move(column)
-            if game.winner is not None:
-                await ctx.send(f"{game.winner.mention} wins!\n\n{game.display_board()}")
-                game = None
-            elif game.is_board_full():
-                await ctx.send("It's a tie!\n\nGame Over.\n\n" + game.display_board())
-                game = None
-            else:
-                await ctx.send(f"{game.current_player.mention}'s turn.\n\n{game.display_board()}")
-        except ValueError as e:
-            await ctx.send(str(e))
+        display = ""
+        for row in self.board:
+            display += "║" + "║".join(row) + "║\n"
+        return display
 
 def setup(bot):
-    bot.add_command(connect4)
-    bot.add_command(drop)
+    @bot.tree.command(name='connect4', description="Starts a game of Connect 4 with a wager")
+    @app_commands.describe(user="Who will you challenge?", wager="Amount of money to bet")
+    async def connect4(interaction: discord.Interaction, user: discord.Member, wager: int):
+        if user.bot:
+            await interaction.response.send_message("Please challenge an actual user and not a bot :/")
+            return
+
+        if wager < 0:
+            await interaction.response.send_message("You can't wager a negative amount..")
+            return
+
+        # Check if both players have enough balance
+        challenger_balance = get_balance(interaction.user.id)
+        challengee_balance = get_balance(user.id)
+        if challenger_balance < wager or challengee_balance < wager:
+            await interaction.response.send_message("One or both players don't have enough balance to cover this wager.")
+            return
+
+        await interaction.response.send_message(f"{user.mention}, you have been challenged to a game of Connect 4 by {interaction.user.mention} for a wager of {wager} dabloons. Do you accept? (yes/no)")
+
+        def check(m):
+            return m.author == user and m.content.lower() in ["yes", "no"]
+
+        try:
+            msg = await interaction.client.wait_for('message', check=check, timeout=60.0)
+        except asyncio.TimeoutError:
+            await interaction.followup.send("Challenge timed out.")
+            return
+
+        if msg.content.lower() == "no":
+            await interaction.followup.send("Challenge declined.. maybe next time")
+            return
+
+        game = Connect4Game(interaction.user, user)
+        board_message = await interaction.followup.send("Game starts!\n" + game.display_board())
+
+        while not game.is_full():
+
+            def column_check(m):
+                return m.author == game.players[game.current_player] and m.content.isdigit() and 1 <= int(m.content) <= 7
+
+            msg = await interaction.client.wait_for('message', check=column_check)
+            column = int(msg.content)
+
+            await msg.delete()
+
+            if not game.insert_piece(column):
+                await interaction.followup.send("Column is full. Try another one.")
+                continue
+
+            # Edit the existing board message instead of sending a new one
+            current_player_mention = game.players[game.current_player].mention
+            await board_message.edit(content=f"Game in Progress:\n{current_player_mention}'s turn. Choose a column (1-7)\n" + game.display_board())
+
+            if game.check_winner():
+                winner = game.players[game.current_player]
+                loser = game.players[1 - game.current_player]
+                update_balance(winner.id, get_balance(winner.id) + wager)
+                update_balance(loser.id, get_balance(loser.id) - wager)
+                await board_message.edit(content=f"Congratulations! {winner.mention} won {wager} dabloons!\n" + game.display_board())
+                return
+
+            game.current_player = 1 - game.current_player
+
+        await board_message.edit(content="It's a draw! Well played!\n" + game.display_board())

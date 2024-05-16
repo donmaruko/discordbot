@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord import app_commands
 import random,sqlite3,asyncio,traceback
 
 # sqlite
@@ -8,6 +8,7 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS balances
              (user_id INTEGER PRIMARY KEY, balance INTEGER)''')
 conn.commit()
+
 # sqlite stuff
 def get_balance(user_id):
     c.execute("SELECT balance FROM balances WHERE user_id=?", (str(user_id),)) # convert user id to string
@@ -22,124 +23,101 @@ def update_balance(user_id, balance):
         balance = 0
     c.execute("INSERT OR REPLACE INTO balances (user_id, balance) VALUES (?, ?)", (str(user_id), balance))
     conn.commit()
-    
-# function to calculate the sum of cards in a hand, accounting for aces
+
 def sum_cards(cards):
-    total = sum(cards)
-    if total > 21 and 11 in cards:
-        total -= 10
+    total = sum(card if card != 11 else 1 for card in cards)
+    aces = cards.count(11)
+    while total <= 11 and aces:
+        total += 10
+        aces -= 1
     return total
 
+def display_cards(cards):
+    return ', '.join(str(card) for card in cards)
+
+def deal_card():
+    return random.choice([2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11])
+
 # blackjack game
-@commands.command(aliases=['bj'], help='Starts a game of blackjack with the bot.')
-async def blackjack(ctx, bet:int=0):
-    balance = get_balance(ctx.author.id)
-    if balance is None:
-        balance = 500
-        update_balance(ctx.author.id, balance)
-    if bet <= 0:
-        await ctx.send("Well, how much do you wanna bet?")
-        return
-    if bet > balance:
-        await ctx.send("Oops, sorry, you don't have enough dabloons for that.")
-        return
-
-    # deck initialization
-    deck = [2,3,4,5,6,7,8,9,10,10,10,10,11]*4
-    random.shuffle(deck)
-
-    # initialize player and dealer hands
-    player_hand = [deck.pop(), deck.pop()]
-    dealer_hand = [deck.pop(), deck.pop()]
-
-    # show the player's hand and the dealer's face up card
-    await ctx.send(f"Your hand: {player_hand} ({sum_cards(player_hand)})\nDealer's up card: {dealer_hand[0]}")
-
-    # check for blackjack
-    if sum_cards(player_hand) == 21:
-        await ctx.send(f"Blackjack! {ctx.author.mention} won and gained {bet} dabloons.")
-        balance += bet * 2
-        update_balance(ctx.author.id, balance)
-        return
-    
-    # player turn
-    while True:
-        # ask the player to hit or stand
-        message = await ctx.send("Would you like to hit or stand? Type 'h' or 's'.")
-        response = await ctx.bot.wait_for('message', check=lambda m: m.author == ctx.author and m.content.lower() in ['h', 's'], timeout=30)
-
-        # if the player hits, draw a card and display the new hand
-        if response.content.lower() == 'h':
-            player_hand.append(deck.pop())
-            await message.delete()
-            await response.delete()
-            await ctx.send(f"Your hand: {player_hand} ({sum_cards(player_hand)})\nDealer's up card: {dealer_hand[0]}")
-
-            # if the player busts, end the game
-            if sum_cards(player_hand) > 21:
-                await ctx.send(f"You bust! {ctx.author.mention} lost {bet} dabloons.")
-                balance -= bet
-                update_balance(ctx.author.id, balance)
-                return
-            if sum_cards(player_hand) == 21:
-                await ctx.send(f"Blackjack! {ctx.author.mention} won and gained {bet} dabloons!")
-                balance += bet * 2
-                update_balance(ctx.author.id, balance)
-                return
-
-        # if the player stands, the game moves on to the dealer's turn
-        elif response.content.lower() == 's':
-            await message.delete()
-            await response.delete()
-            break
-
-    # check for a hand of 21
-    if sum_cards(player_hand) == 21:
-        await ctx.send(f"21! {ctx.author.mention} won and gained {bet} dabloons.")
-        balance += bet
-        update_balance(ctx.author.id, balance)
-        return
-    
-    # dealer turn
-    while sum_cards(dealer_hand) < 17:
-        dealer_hand.append(deck.pop())
-
-    # show the dealer's hand and determine the winner
-    await ctx.send(f"Dealer's hand: {dealer_hand} ({sum_cards(dealer_hand)})")
-
-    if sum_cards(dealer_hand) > 21:
-        await ctx.send(f"Dealer busts! {ctx.author.mention} won and gained {bet} dabloons.")
-        balance += bet
-        update_balance(ctx.author.id, balance)
-        return
-    elif sum_cards(dealer_hand) == sum_cards(player_hand):
-        await ctx.send("It's a tie!")
-        return
-    elif sum_cards(dealer_hand) == 21:
-        await ctx.send(f"Dealer has blackjack! {ctx.author.mention} lost {bet} dabloons.")
-        balance -= bet
-        update_balance(ctx.author.id, balance)
-        return
-    elif sum_cards(dealer_hand) > sum_cards(player_hand):
-        await ctx.send(f"Dealer wins! {ctx.author.mention} lost {bet} dabloons.")
-        balance -= bet
-        update_balance(ctx.author.id, balance)
-        return
-    else:
-        await ctx.send(f"{ctx.author.mention} won and gained {bet} dabloons.")
-        balance += bet
-        update_balance(ctx.author.id, balance)
-        return
-# ERROR HANDLING FOR BLACKJACK
-@blackjack.error
-async def blackjack_error(ctx, error):
-    traceback.print_exc()  # Print the traceback of the error
-    if isinstance(error, commands.BadArgument):
-        await ctx.send("Invalid bet amount, please enter a whole number greater than 0.")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("Please enter an amount to bet.")
-    else:
-        await ctx.send("An error occurred while executing the command.")
-
 def setup(bot):
-    bot.add_command(blackjack)
+    @bot.tree.command(name="blackjack", description="Starts a game of blackjack")
+    @app_commands.describe(bet="How much you wanna bet?")
+    async def blackjack(interaction: discord.Interaction, bet: int):
+        user_id = interaction.user.id
+        current_balance = get_balance(user_id)
+
+        if bet > current_balance:
+            await interaction.response.send_message("Come back when you actually have that much money..")
+            return
+
+        player_cards = [deal_card(), deal_card()]
+        dealer_cards = [deal_card(), deal_card()]
+
+        player_total = sum_cards(player_cards)
+        dealer_total = sum_cards([dealer_cards[0]])  # Initially consider only the first card
+
+        player_blackjack = (player_total == 21)
+
+        # Show only the first dealer card initially and bold the total
+        await interaction.response.send_message(f"Your cards: {display_cards(player_cards)} (Total: **{sum_cards(player_cards)}**)\n"
+                                                f"Dealer's cards: {dealer_cards[0]}, ?\n"
+                                                "Respond with 'h' to hit and 's' to stand", ephemeral=True)
+
+        def check(m):
+            return m.author == interaction.user and m.content.lower() in ["h", "s"]
+
+        while player_total < 21:
+            msg = await bot.wait_for('message', check=check)
+            if msg.content.lower() == "h":
+                player_cards.append(deal_card())
+                player_total = sum_cards(player_cards)
+                await interaction.followup.send(f"You drew a card: {player_cards[-1]}\n"
+                                                f"Your hand is now: {display_cards(player_cards)} (Total: **{player_total}**)\n"
+                                                f"Dealer's cards: {dealer_cards[0]}, ?", ephemeral=True)
+            elif msg.content.lower() == "s":
+                break
+            await msg.delete() 
+
+        # Reveal the dealer's second card and continue the game
+        dealer_total = sum_cards(dealer_cards)
+        await interaction.followup.send(f"Dealer's second card is revealed: {dealer_cards[1]}\n"
+                                        f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)", ephemeral=True)
+
+        while dealer_total < 17:
+            new_card = deal_card()
+            dealer_cards.append(new_card)
+            dealer_total = sum_cards(dealer_cards)
+            await interaction.followup.send(f"Dealer draws: {new_card}\n"
+                                            f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)", ephemeral=True)
+
+        result_message = f"Your total: **{player_total}**, Dealer's total: **{dealer_total}**\n"
+        if player_total > 21:
+            result_message += f"You bust! You lost **{bet}** dabloons!"
+            update_balance(user_id, current_balance - bet)
+        elif dealer_total > 21 or (player_blackjack and player_total > dealer_total):
+            if player_blackjack:
+                winnings = int(1.5 * bet)
+                result_message += f"Blackjack! You won **{winnings}** dabloons!"
+            else:
+                result_message += f"Dealer busts! You won **{bet}** dabloons!"
+            update_balance(user_id, current_balance + winnings if player_blackjack else current_balance + bet)
+        elif player_total == dealer_total:
+            result_message += "It's a push!"
+        elif player_total > dealer_total:
+            if player_blackjack:
+                winnings = int(1.5 * bet)
+                result_message += f"Blackjack! You won **{winnings}** dabloons!"
+                update_balance(user_id, current_balance + winnings)
+            else:
+                result_message += f"You won **{bet}** dabloons!"
+                update_balance(user_id, current_balance + bet)
+        else:
+            result_message += f"You lost **{bet}** dabloons!"
+            update_balance(user_id, current_balance - bet)
+
+        await interaction.followup.send(result_message, ephemeral=True)
+
+    blackjack_command = bot.tree.get_command("blackjack")
+    if blackjack_command:
+        bot.tree.add_command(app_commands.Command(name="bj", callback=blackjack_command.callback,
+                                                  description=blackjack_command.description))

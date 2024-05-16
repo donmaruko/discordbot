@@ -1,32 +1,35 @@
-import discord
 from discord.ext import commands
-
-@commands.command(name='suggest', help='Suggest something to the bot author.')
-async def suggest(ctx, *, suggestion):
-    with open('suggestions.txt', 'a') as file:
-        file.write(f'{ctx.author.name}#{ctx.author.discriminator} ({ctx.author.id}): {suggestion}\n')
-
-    print(f'Suggestion added: {suggestion}')  # Debugging statement
-    await ctx.send(f'Thank you for your suggestion, {ctx.author.mention}!')
-
-@commands.command(name='readsuggestions', help='Read all the suggestions.')
-@commands.has_permissions(administrator=True)
-async def readsuggestions(ctx):
-    with open('suggestions.txt', 'r') as file:
-        suggestions = file.readlines()
-    await ctx.send("Here are the suggestions:\n" + "".join(suggestions))
-
-@commands.command(name='clearsuggestions', help='Clear a specified number of suggestions.')
-@commands.has_permissions(administrator=True)
-async def clearsuggestions(ctx, num: int):
-    with open('suggestions.txt', 'r+') as file:
-        lines = file.readlines()
-        file.seek(0)  # Move the file pointer to the beginning
-        file.truncate()  # Clear the file content
-        file.writelines(lines[num:])  # Write back the remaining lines after the specified number
-    await ctx.send(f'{num} suggestions cleared successfully!')
+from discord import app_commands
+import discord
 
 def setup(bot):
-    bot.add_command(suggest)
-    bot.add_command(readsuggestions)
-    bot.add_command(clearsuggestions)
+    @bot.tree.command(name='suggest', description="Suggest something to the bot author")
+    @app_commands.describe(suggestion='What will be your suggestion?')
+    async def suggest(interaction: discord.Interaction, suggestion: str):
+        if len(suggestion) >= 200:
+            await interaction.response.send_message("Please keep your suggestion within 200 characters, thank you..", ephemeral=True)
+            return
+
+        with open('suggestions.txt', 'a') as file:
+            file.write(f'{interaction.user.name}#{interaction.user.discriminator} ({interaction.user.id}): {suggestion}\n')
+
+        print(f'Suggestion added: {suggestion}')  # Debugging statement
+        await interaction.response.send_message(f'Thank you for your suggestion, {interaction.user.mention}!')
+
+    @bot.tree.command(name='readsuggestions', description="Admin only, reads user suggestions")
+    @commands.has_permissions(administrator=True)
+    async def readsuggestions(interaction: discord.Interaction):
+        with open('suggestions.txt', 'r') as file:
+            suggestions = file.readlines()
+        await interaction.response.send_message("Here are the suggestions:\n" + "".join(suggestions), ephemeral=True)
+
+    @bot.tree.command(name="clearsuggestions", description="Clear a number of suggestions")
+    @app_commands.describe(num="How many suggestions to clear?")
+    @commands.has_permissions(administrator=True)
+    async def clearsuggestions(interaction: discord.Interaction, num: int):
+        with open('suggestions.txt', 'r+') as file:
+            lines = file.readlines()
+            file.seek(0)  # Move the file pointer to the beginning
+            file.truncate()  # Clear the file content
+            file.writelines(lines[num:])  # Write back the remaining lines after the specified number
+        await interaction.response.send_message(f'{num} suggestions cleared successfully!', ephemeral=True)

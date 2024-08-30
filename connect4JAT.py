@@ -84,7 +84,7 @@ def setup(bot):
         challenger_balance = get_balance(interaction.user.id)
         challengee_balance = get_balance(user.id)
         if challenger_balance < wager or challengee_balance < wager:
-            await interaction.response.send_message("One or both players don't have enough balance to cover this wager.")
+            await interaction.response.send_message("One or both players don't have enough dabloons to cover this wager.")
             return
 
         await interaction.response.send_message(f"{user.mention}, you have been challenged to a game of Connect 4 by {interaction.user.mention} for a wager of {wager} dabloons. Do you accept? (yes/no)")
@@ -103,7 +103,10 @@ def setup(bot):
             return
 
         game = Connect4Game(interaction.user, user)
-        board_message = await interaction.followup.send("Game starts!\n" + game.display_board())
+        await interaction.followup.send("Alright, here we go!")
+        current_player_mention = game.players[game.current_player].mention
+        current_player_color = '🔴' if game.current_player == 0 else '🟡'
+        board_message = await interaction.followup.send(f"{current_player_mention}'s turn ({current_player_color}). Choose a column (1-7)\n" + game.display_board())
 
         while not game.is_full():
 
@@ -116,12 +119,8 @@ def setup(bot):
             await msg.delete()
 
             if not game.insert_piece(column):
-                await interaction.followup.send("Column is full. Try another one.")
+                await interaction.followup.send("Column is full. Try another one.", ephemeral=True)
                 continue
-
-            # Edit the existing board message instead of sending a new one
-            current_player_mention = game.players[game.current_player].mention
-            await board_message.edit(content=f"Game in Progress:\n{current_player_mention}'s turn. Choose a column (1-7)\n" + game.display_board())
 
             if game.check_winner():
                 winner = game.players[game.current_player]
@@ -132,5 +131,8 @@ def setup(bot):
                 return
 
             game.current_player = 1 - game.current_player
+            current_player_mention = game.players[game.current_player].mention
+            current_player_color = '🔴' if game.current_player == 0 else '🟡'
+            await board_message.edit(content=f"Game in Progress:\n{current_player_mention}'s turn ({current_player_color}). Choose a column (1-7)\n" + game.display_board())
 
         await board_message.edit(content="It's a draw! Well played!\n" + game.display_board())

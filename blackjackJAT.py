@@ -61,7 +61,7 @@ def setup(bot):
         # Show only the first dealer card initially and bold the total
         await interaction.response.send_message(f"Your cards: {display_cards(player_cards)} (Total: **{sum_cards(player_cards)}**)\n"
                                                 f"Dealer's cards: {dealer_cards[0]}, ?\n"
-                                                "Respond with 'h' to hit and 's' to stand", ephemeral=True)
+                                                "Respond with 'h' to hit and 's' to stand")
 
         def check(m):
             return m.author == interaction.user and m.content.lower() in ["h", "s"]
@@ -73,7 +73,7 @@ def setup(bot):
                 player_total = sum_cards(player_cards)
                 await interaction.followup.send(f"You drew a card: {player_cards[-1]}\n"
                                                 f"Your hand is now: {display_cards(player_cards)} (Total: **{player_total}**)\n"
-                                                f"Dealer's cards: {dealer_cards[0]}, ?", ephemeral=True)
+                                                f"Dealer's cards: {dealer_cards[0]}, ?")
             elif msg.content.lower() == "s":
                 break
             await msg.delete() 
@@ -81,14 +81,14 @@ def setup(bot):
         # Reveal the dealer's second card and continue the game
         dealer_total = sum_cards(dealer_cards)
         await interaction.followup.send(f"Dealer's second card is revealed: {dealer_cards[1]}\n"
-                                        f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)", ephemeral=True)
+                                        f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)")
 
         while dealer_total < 17:
             new_card = deal_card()
             dealer_cards.append(new_card)
             dealer_total = sum_cards(dealer_cards)
             await interaction.followup.send(f"Dealer draws: {new_card}\n"
-                                            f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)", ephemeral=True)
+                                            f"Dealer's hand is now: {display_cards(dealer_cards)} (Total: **{dealer_total}**)")
 
         result_message = f"Your total: **{player_total}**, Dealer's total: **{dealer_total}**\n"
         if player_total > 21:
@@ -115,7 +115,7 @@ def setup(bot):
             result_message += f"You lost **{bet}** dabloons!"
             update_balance(user_id, current_balance - bet)
 
-        await interaction.followup.send(result_message, ephemeral=True)
+        await interaction.followup.send(result_message)
 
     blackjack_command = bot.tree.get_command("blackjack")
     if blackjack_command:
